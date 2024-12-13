@@ -45,6 +45,173 @@ start_row <- 1
 end_row <- 1000
 chunk_data <- tweets_data[start_row:end_row, ]
 chunk_data
+
+write.csv(chunk_data, "cleaned_tweets.csv", row.names = FALSE)
+write.csv(tweets_data, "processed_tweets.csv", row.names = FALSE)
+valid_texts <- chunk_data$text[chunk_data$text != ""]
+cat("Number of valid texts before preprocessing: ", length(valid_texts), "\n")
+if (length(valid_texts) > 0) {
+  
+  corpus <- Corpus(VectorSource(valid_texts))
+  
+  corpus <- tm_map(corpus, content_transformer(tolower))
+  cat("Number of valid texts after converting to lowercase: ", length(corpus), "\n")
+  
+  corpus <- tm_map(corpus, removePunctuation)
+  cat("Number of valid texts after removing punctuation: ", length(corpus), "\n")
+  
+  corpus <- tm_map(corpus, removeNumbers)
+  cat("Number of valid texts after removing numbers: ", length(corpus), "\n")
+  
+  corpus <- tm_map(corpus, removeWords, stopwords("en"))
+  cat("Number of valid texts after removing stopwords: ", length(corpus), "\n")
+  
+  corpus <- tm_map(corpus, stripWhitespace)
+  cat("Number of valid texts after stripping whitespace: ", length(corpus), "\n")
+  
+  if (length(corpus) > 0) {
+    wordcloud(corpus, 
+              max.words = 100, 
+              random.order = FALSE, 
+              colors = brewer.pal(8, "Dark2"), 
+              scale = c(3, 0.5))
+  } else {
+    cat("No valid text left to create a word cloud.\n")
+  }
+} else {
+  cat("No valid texts available to create a word cloud.\n")
+}
+
 ```
+#NOTE: for the Wordcloud, it can change by changing also the range you want from the code above.
+
+#his word cloud represents discussions surrounding the Itaewon tragedy, with prominent words like "Itaewon," "tragedy," and "happened" emphasizing the event's focus. Terms such as "people," "victims," "Halloween," and "crowd" provide context, while words like "condolences," "prayers," and "mourning" convey the grief and sympathy felt by many. The cloud is centered around the October 29, 2022, Itaewon crowd crush in Seoul, where overcrowding during Halloween celebrations tragically led to the loss of over 150 lives and sparked widespread mourning.
+
+```{r}
+tweets_data$Created_At_Round <- as.POSIXct(tweets_data$Created_At_Round, format = "%d/%m/%Y %H:%M", tz = "UTC")
+tweets_data$date <- as.Date(tweets_data$Created_At_Round)
+tweets_data$hour <- format(tweets_data$Created_At_Round, "%H")
+hourly_tweets <- tweets_data %>%
+  group_by(date, hour) %>%
+  summarise(tweet_count = n(), .groups = "drop") %>%
+  mutate(hour = as.numeric(hour))
+
+plots <- lapply(unique(hourly_tweets$date), function(current_date) {
+  
+  date_data <- hourly_tweets %>% 
+    filter(date == current_date)
+  
+  ggplot(date_data, aes(x = hour, y = tweet_count)) +
+    geom_line(color = "blue", linewidth = 1) +
+    geom_point(color = "red") +
+    geom_text(aes(label = tweet_count), vjust = -0.5, color = "black", size = 3) +
+    scale_x_continuous(breaks = 0:23) +
+    labs(
+      title = paste("Tweet Counts on", format(current_date, "%B %d, %Y")),
+      x = "Hour of the Day",
+      y = "Number of Tweets"
+    ) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+})
+
+for(i in seq_along(plots)) {
+  print(plots[[i]])
+}
+
+summary_per_date <- tweets_data %>%
+  group_by(date) %>%
+  summarise(
+    total_tweets = n(),
+    unique_hours = n_distinct(format(Created_At_Round, "%H"))
+  )
+print(summary_per_date)
+
+```
+#1. Graph for October 28, 2022: This graph presents a detailed distribution of tweet activity across 24 hours, with noticeable fluctuations throughout the day. Tweet counts peak at certain times: 2 AM (13 tweets), 3 AM (12 tweets), and 10 PM (11 tweets). Meanwhile, tweet activity dips during hours like 6 AM and 9 PM.
+
+#Insight: The variability in tweet counts suggests that tweet activity on this day could be linked to specific events or patterns of user engagement, such as late-night or evening interactions. The peaks likely correspond to events or discussions of particular interest at those times.
+
+#2. Graph for October 29, 2022: This graph illustrates a sharp surge in tweet counts during the late afternoon, especially between 4 PM and 7 PM, reaching a peak of 3,791 tweets at 7 PM. In contrast, tweet activity is minimal for the rest of the day, with a slight recovery around 10 PM (2,240 tweets).
+
+#Insight: The significant spike in tweet activity suggests the occurrence of a major event or trending topic in the late afternoon and early evening. The pattern is a stark contrast to the generally low tweet volume earlier and later in the day.
+
+#3. Graph for October 30, 2022: This graph shows tweet counts across the hours of the day, revealing a peak at 2 AM with 3,456 tweets, followed by a sharp decline by 4 AM. Tweet activity gradually decreases throughout the day, hitting a low of 324 tweets at 10 PM. There is some fluctuation, with a brief uptick around 1 PM, which peaks at 1,515 tweets before continuing its decline toward the evening.
+
+#Insight: Tweet activity is highest during the early morning hours, likely reflecting late-night discussions or the influence of different time zones. The decrease in activity as the day progresses suggests less engagement in the evening. Understanding this trend could help optimize content scheduling for better user interaction.
+
+#4. Graph for October 31, 2022: This graph shows a single data point, indicating only 197 tweets recorded during a specific hour. The lack of detailed hourly data or minimal tweet activity suggests sparse engagement across the day.
+
+#Insight: The limited tweet activity or incomplete data makes it difficult to draw meaningful conclusions from this day’s graph.
+
+```{r}
+tweets_data$statusSource_clean <- gsub("<.*?>", "", tweets_data$statusSource)
+statusCounts <- table(tweets_data$statusSource_clean)
+barplot(statusCounts, 
+        main = "Tweet Source Distribution", 
+        xlab = "Platform", 
+        ylab = "Number of Tweets", 
+        col = rainbow(length(statusCounts)), 
+        las = 2,              
+        cex.axis = 0.15)
+
+```
+#The first graph, a bar plot, visualizes the distribution of tweets across different source platforms. It highlights a skewed pattern, with a small number of dominant platforms, such as Twitter for iPhone and Twitter for Android, accounting for the majority of tweets. In contrast, most other sources contribute only a small fraction of the total tweet count. This demonstrates the significant influence of mainstream platforms on overall Twitter activity, while lesser-known sources have minimal impact on tweet volumes.
+
+```{r}
+library(ggplot2)
+library(readr)
+library(dplyr)
+
+print(colnames(tweets_data))
+```
+```{r}
+TweetSourceCountsData <- tweets_data %>%
+  group_by(tweetSource) %>%
+  summarize(Count = n()) %>%
+  arrange(desc(Count))
+TweetSourceCountsData$tweetSource <- factor(TweetSourceCountsData$tweetSource, 
+                                          levels = TweetSourceCountsData$tweetSource)
+ggplot(TweetSourceCountsData, aes(x = reorder(tweetSource, -Count), y = Count, fill = tweetSource)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Tweet Source Comparison",
+       x = "Tweet Source",
+       y = "Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_manual(values = c("iphone" = "magenta", "android" = "cyan", "others" = "pink", "ipad" = "blue", "ifttt" = "green", "dlvr.it" = "red"))
+
+
+```
+#This bar chart illustrates the distribution of tweets across various sources. The x-axis represents the different tweet sources (e.g., iPhone, Android, others), while the y-axis shows the corresponding tweet counts.The chart reveals that iPhone and Android are the dominant sources, with iPhone slightly surpassing Android in tweet volume. The "others" category comes third but remains far behind the leading sources. Other platforms, including iPad, IFTTT, and dlvr.it, contribute only a small fraction of the total tweet count.
+
+#The key insight from this chart is that mobile devices, particularly iPhones and Androids, are the primary platforms for tweeting, emphasizing their central role in social media activity. The minimal contribution from other sources suggests a limited impact of these platforms on overall tweet volume, possibly reflecting user preferences and the prominence of mobile devices in social media interactions.
+
+```{r}
+TweetSourceCountsUpdated <- tweets_data %>%
+  group_by(tweetSource) %>%
+  summarize(Count = n()) %>%
+  arrange(desc(Count))
+
+TweetSourceCountsUpdated$tweetSource <- factor(TweetSourceCountsUpdated$tweetSource, 
+                                                levels = TweetSourceCountsUpdated$tweetSource)
+
+ggplot(TweetSourceCountsUpdated, aes(x = reorder(tweetSource, -Count), y = Count, fill = tweetSource)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Tweet Source Comparison",
+       x = "Tweet Source",
+       y = "Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_manual(values = c("iphone" = "magenta", "android" = "cyan", "others" = "pink", 
+                               "ipad" = "blue", "ifttt" = "green", "dlvr.it" = "red"))
+
+```
+#This bar chart shows the distribution of tweet sentiment (negative, neutral, and positive) across various tweet sources, including Android, iPhone, and others. The x-axis represents different tweet sources (e.g., Android, iPhone, others), and the y-axis indicates the number of tweets for each sentiment category.
+
+#From the chart, we observe that Android and iPhone are the most prominent tweet sources. For Android, the majority of tweets are negative, followed by positive and neutral tweets. Similarly, iPhone tweets show a higher number of negative sentiments, with positive tweets being the second most frequent, followed by neutral tweets. Tweets from the "others" category also show a similar sentiment distribution, though with fewer tweets overall compared to Android and iPhone.
+
+
+
 
 
