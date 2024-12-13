@@ -1,0 +1,50 @@
+---
+title: "Sentiment Analysis Project"
+author: "Calzado-Baylon-Calvario"
+date: "2024-12-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(tidyverse)
+library(syuzhet)
+library(tm)            
+library(wordcloud)     
+library(RColorBrewer)
+library(lubridate)
+
+tweets_data <- read.csv("tweetsDF.csv")
+
+```
+```{r}
+tweets_data$text <- iconv(tweets_data$text, from = "UTF-8", to = "ASCII//TRANSLIT", sub = "")
+keywords_pattern <- "\\b(blackpink|yg|bornpink|lisa|jennie|rose|jisoo)\\b|:\\(\\(|&amp;|!|:\\(|&lt;/3|:|&lt;|/|~|iphone|android|nody_meow,|rogue_corq,|apobang27095028,|dessouslevide,|junacrawf0rd,|idkaybictdie,|lhcwesq4iebpbzf,|bpbiggestggindw,|lovemyhead,|akinsolaaliu,|nhlandmlb_fan,|virgini47003223,|angelscrown_,|stacebu,|starlight_sasha,|yuna4lifer,|diandianwong,|dillikahoshi,|tomie_jpg,|biyulving,|jshms9|1ov,|run_pjm,|lae__loner,|ariana_n64,|hdragees,|leemandelo,|purpleocean_i,|wildcatalum,|koreankrueger,|straykldswoo,|siang_ping,|lovemyheadwrap,|nyeongive,|cryptocross0ver|reexrco,|clarefl96567112,|wsbt,|killugoners,|maimechantel,|thealexateam,|ttaesthicx,|juliana62208602,|sadfuk99,|the_inspi,|hyckgasm,|hooriapashaa,|seungri_italy,|rawmilklvr,|laurettaland,|amaarzahid,|andiroo_,|__borntoslay_,|gothwolfjk,|3bbbinlove,|globalmyeon,|tianz17,|2korad,|doncastor4,|lesbi,|yolanda71545557,|mochixjm,|nunupaws,|simoncropp,|aoife,|btsvoque,|jeongpark52,|cloudychiwoo,|kaiewitherloavc,|yerimlvs,|mochixjm1,|tear_ofgod,|frothfather,|moatybuns,|richiericil,|maggiemae2019,|ckyunstd,|cyborgslament,|hyukasplush,|cxcileyyyy,|jungwoohehet,|lostinminhyuk,|crazyemio,|cbsaustin,|backtobleuside,|arches_in,|shelleypowers,|christineirishg,|bubblephehe,|minsmitten,|kaysfalling,|verrerenebi,|ntm23,|auroraluvbot,|my_drama_list,|kindordie,|kaede_zen,|luvskeehoo,"
+tweets_data$text <- tolower(tweets_data$text)  
+tweets_data$text <- gsub("https\\S+", "", tweets_data$text) 
+tweets_data$text <- gsub("#", "", gsub("\n", " ", tweets_data$text)) 
+tweets_data$text <- gsub("([@?]\\S+)", "", tweets_data$text) 
+tweets_data$text <- gsub("\\?", "", tweets_data$text)  
+tweets_data$text <- gsub("\\b\\d{2}\\.\\d{2}\\.\\d{4}\\b", "", tweets_data$text)  
+tweets_data$text <- gsub(keywords_pattern, "", tweets_data$text, ignore.case = TRUE)  
+tweets_data$text <- gsub("<a href=httptwitter.comdownloadandroid rel=nofollow>twitter for android<a>", "", tweets_data$text)
+tweets_data$text <- gsub("<a href= rel=nofollow>twitter web app<a>", "", tweets_data$text)
+tweets_data$text <- gsub("<a href=httptwitter.comdownloadiphone rel=nofollow>twitter for iphone<a>", "", tweets_data$text)
+tweets_data$text <- gsub("<a href=([^>]*?) rel=nofollow>([^<]*?)<a>", "", tweets_data$text)
+
+create_chunks <- function(df, start_row, end_row) {
+  return(df[start_row:end_row, ])
+}
+start_row <- 1
+end_row <- 1000
+chunk_data <- tweets_data[start_row:end_row, ]
+chunk_data
+```
+
+
